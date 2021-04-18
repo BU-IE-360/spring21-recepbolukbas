@@ -1,0 +1,100 @@
+---
+title: "HW1"
+author: "Recep Talha Bölükbaş"
+date: "16 04 2021"
+output: html_document
+---
+
+```{r echo=FALSE,results="hide", warning=FALSE, message=FALSE}
+library(knitr)
+library(tidyverse)
+library(EVDS)
+library(lubridate)
+library(zoo)
+library(gtrendsR)
+library(ggplot2)
+library(openxlsx)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Datas From EVDS (Interest Rates of Car Loans, US Dollars/Turkish Liras Currency, General Consumer Price Index)
+
+  I got data of recent 5 years from EVDS and tried to look relationships between dollar currency, car loans, general consumer price index which is an inflation measure and effects on car sales in general. 
+  
+
+```{r}
+mydata = read.xlsx("C:\\Users\\rtbol\\Downloads\\EVDS.xlsx")
+
+```
+  After I read the data from Excel, the next step is part A in homework.
+
+## Plotting the Data
+
+```{r}
+ggplot(mydata, aes(x = Tarih, y = TP.DK.USD.A.YTL )) +  geom_line(aes(group=1)) + geom_point()
+ggplot(mydata, aes(x = Tarih, y = TP.KTF11 )) + geom_line(aes(group=1)) + geom_point()
+ggplot(mydata, aes(x = Tarih, y = TP.FG.J0 )) + geom_line(aes(group=1)) + geom_point()
+
+```
+
+### Analysis
+  When we look at these graphs, it is possible to say there is an increasing trend in both US Dollars currency and Consumer Price Index. That means since 2015, inflation is rising and TL is depreciating against USD. Our another data is the Interest rates of Car Loans. This graph shows that there is a similar trend until 2020 with some exceptions (there are some tax deductions and decreasing interest rates in automobile industry in last 2-3 months of every year.). In 2020, there is a huge decrease in interest rates which can be seen in graph. The reason behind that can be the strategy of Minister of Finance.  
+  
+  
+## Google Trends
+  Then I choose 3 keywords and searched on Google Trends. My keywords were "sahibinden" which is the most common automobile market, "satılık araç" and "sıfır araç" for check do people prefer brand new cars or used cars when US Dollar, Consumer Price Index and interest rates of car loans behave like we seen before for last 6 years.
+
+### First keyword "Sahibinden"
+
+```{r}
+s1 = gtrends("sahibinden", geo ='TR', time = "2015-04-01 2021-03-31")
+s11 = s1$interest_over_time
+#s11 is the time series data of gtrends(s1)
+ggplot(s11,aes(x = date, y = hits)) + ggtitle("Search of 'Sahibinden'") + geom_point() + geom_line() 
+```
+
+### Analysis 
+  
+  We can see that while TL is decreasing its value against USD and inflation rising, people's tend to buy a new car is decreasing since 2015. However in 2020, because of coronavirus pandemic and thanks to interest rate deduction search of "sahibinden" word in Google increased very much.
+
+### Second keywords "Satılık araç"
+
+```{r}
+s2 = gtrends("satılık araç", geo ='TR', time = "2015-04-01 2021-03-31")
+s22 = s2$interest_over_time
+#s22 is the time series data of gtrends(s2)
+ggplot(s22,aes(x = date, y = hits)) + geom_point() + geom_line() + ggtitle("Search of 'Satılık Araç'")
+```
+
+### Analysis
+  In this interesting data, we can see that there is a huge increase in 2020 again in the effect of interest rate decrease and pandemic.
+
+### Last keywords "Sıfır Araç"
+
+```{r}
+s3 = gtrends("sıfır araç", geo ='TR', time = "2015-04-01 2021-03-31")
+s33 = s3$interest_over_time
+#s33 is the time series data of gtrends(s3)
+ggplot(s33,aes(x = date, y = hits)) + geom_point() + geom_line() + ggtitle("Search of 'Sıfır Araç'")
+```
+
+### Analysis
+  
+  We can see that there is an inverse relationship between interest rates of car loans and google search of "sıfır araç" in general. Again it can be seen clearly in 2020. Car loans are available for cars which are produced within last 7 years and people especially prefer that loans when they are planning to buy brand new cars. So in this graph there is a similar trend with interest rate graph. 
+
+
+### References: 
+ 1 - [EVDS](https://evds2.tcmb.gov.tr/index.php?/evds/serieMarket)
+ 
+ 2 - [Google Trends Links](http://trends.google.com)
+      
+      2.1 - [First Keyword](https://trends.google.com/trends/explore?date=2015-01-04%202021-03-01&geo=TR&q=sahibinden)
+      
+      2.2 - [Second Keyword](https://trends.google.com/trends/explore?date=2015-04-01%202021-03-31&geo=TR&q=sat%C4%B1l%C4%B1k%20ara%C3%A7)
+      
+      2.3 - [Third Keyword](https://trends.google.com/trends/explore?date=2015-04-01%202021-03-31&geo=TR&q=sat%C4%B1l%C4%B1k%20ara%C3%A7)
+ 
+ 3 - [Interest Rates in 2020](https://www.sabah.com.tr/ekonomi/2020/06/06/son-dakika-haberi-konut-kredisi-ve-tasit-kredisi-faiz-oranlari-indirimi-ziraa-halkbank-vakifbank-kredi-faiz-orani-ne-kadar-ve-odeme-plani-nasil)
+ 
