@@ -1,0 +1,153 @@
+---
+title: "IE360 HW2"
+author: "Recep Talha Bölükbaş"
+date: "06 05 2021"
+output: html_document
+---
+#Time Series Regression for Predicting Macroeconomic Indicators
+
+## Base of My Model
+  In this work, I will use CPI data of food and non-alcoholic beverages from EVDS and make a time series regression model with some regressors. As regressors I thought that USD-TRY exchange rate, consumer loan interest and total foreign currency reserves of CB are related with CPI and can be good regressors with high significancy at forecasting next month's CPI value. I have data from "2012-04" to "2021-03" and will try to predict the CPI value of April 2021 at the end.First it requires some data manipulation steps. I plotted the data and look is there any trend or seasonality in my data.  
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Required Library
+```{r}
+library(tidyverse)
+library(lubridate)
+library(zoo)
+library(ggplot2)
+library(openxlsx)
+require(data.table)
+library(forecast)
+```
+## Data Manipulation and Model Building
+
+ We need to read the data from an excel file and then prepare it to plot.
+```{r}
+mydata = read.xlsx("C:\\Users\\rtbol\\Downloads\\hw2 EVDS.xlsx")
+class(mydata)
+mydatatable = data.table(mydata)
+is.data.table(mydatatable)
+head(mydatatable,13)
+```
+ After this we can look 1 year behaviour and all 9 years behaviour of the data
+```{r}
+ggplot(mydatatable[Tarih <= "2020-12" & Tarih >= "2020-01"],aes(x=Tarih,y=TP.FG.J01)) + geom_line(group=1) + geom_point()
+ggplot(mydatatable,aes(x=Tarih,y=TP.FG.J01)) + geom_line(group=1) + geom_point()
+```
+
+ We can see that there is a increasing linear trend in the all data and some little seasonality in one-year graph. First I added the trend in my data and made my first model ts_reg with only trend.
+```{r}
+mydatatable[,trend:=1:.N]
+ts_reg=lm(TP.FG.J01~trend,mydatatable)  
+mydatatable[,trend_constant:=predict(ts_reg,mydatatable)]
+ggplot(mydatatable ,aes(x=Tarih)) + geom_line(group=1,aes(y=TP.FG.J01,color='real')) + geom_line(group=1,aes(y=trend_constant,color='trend'))
+summary(ts_reg)
+checkresiduals(ts_reg)
+```
+ In this step our trend variable is highly significant and model has 0.92 R-squared value. However when we check residuals, it can be seen that residuals are not fitting to basic assumptions and are highly correlated.
+ Then I decided to add month variable because of little seasonality I found in one-year graph. First I made some arrangements on data.
+ 
+```{r}
+mydatatable <- mydatatable %>% mutate(Tarih = ym(Tarih))
+mydatatable[,monthName:=as.character(lubridate::month(Tarih, label=T))]
+mydatatable
+```
+ Then I made ts_reg2 with trend and months. 
+```{r}
+ts_reg2=lm(TP.FG.J01~trend+monthName,mydatatable)
+summary(ts_reg2)
+
+mydatatable[,trend_constant_month:=predict(ts_reg2,mydatatable)]
+ggplot(mydatatable ,aes(x=Tarih)) +
+  geom_line(aes(y=TP.FG.J01,color='real')) + 
+  geom_line(aes(y=trend_constant_month,color='trend'))
+checkresiduals(ts_reg2)
+```
+ In this step there was not much change in my R-squared value and residuals. In summary month values were not significant but intercept was still highly significant and I decided to keep this in my model for next steps.
+ First I added Exchange rate to model and create ts_reg3 with trend+month+exchange rate
+ 
+```{r}
+ts_reg3=lm(TP.FG.J01~trend+monthName+TP.DK.USD.A.YTL,mydatatable)
+summary(ts_reg3)
+
+mydatatable[,trend_constant_month_usd:=predict(ts_reg3,mydatatable)]
+ggplot(mydatatable ,aes(x=Tarih)) +
+  geom_line(aes(y=TP.FG.J01,color='real')) + 
+  geom_line(aes(y=trend_constant_month_usd,color='trend'))
+checkresiduals(ts_reg3)
+```
+ 
+ After this step my model became much better my residuals were closer to normal distribution with zero mean and constant variance. Then I built models ts_reg4 with trend+month+exchange+interest and ts_reg5 with trend+month+exchange+interest+reserves.
+
+```{r}
+ts_reg4=lm(TP.FG.J01~trend+monthName+TP.DK.USD.A.YTL+TP.KTF10,mydatatable)
+summary(ts_reg4)
+
+mydatatable[,trend_constant_month_usd_interest:=predict(ts_reg4,mydatatable)]
+ggplot(mydatatable ,aes(x=Tarih)) +
+  geom_line(aes(y=TP.FG.J01,color='real')) + 
+  geom_line(aes(y=trend_constant_month_usd_interest,color='trend'))
+checkresiduals(ts_reg4)
+
+ts_reg5=lm(TP.FG.J01~trend+monthName+TP.DK.USD.A.YTL+TP.KTF10+TP.AB.C2,mydatatable)
+summary(ts_reg5)
+
+mydatatable[,trend_constant_month_usd_reserves:=predict(ts_reg5,mydatatable)]
+ggplot(mydatatable ,aes(x=Tarih)) +
+  geom_line(aes(y=TP.FG.J01,color='real')) + 
+  geom_line(aes(y=trend_constant_month_usd_reserves,color='trend'))
+checkresiduals(ts_reg5)
+```
+ 
+ After these steps our regressors were significant and model were working well. In residuals there were high correlation in lag1 and lag2. These correlation values can be ignored but I want to add these lagged variables to make model better. ts_reg6 is the best model I have reached during my work.
+ 
+```{r}
+ts_reg6=lm(TP.FG.J01~trend+monthName+TP.DK.USD.A.YTL+TP.KTF10+TP.AB.C2+lag(TP.FG.J01,1)+lag(TP.FG.J01,2),mydatatable)
+summary(ts_reg6)
+
+mydatatable[,trend_constant_month_usd_reserves_lagged:=predict(ts_reg6,mydatatable)]
+ggplot(mydatatable ,aes(x=Tarih)) +
+  geom_line(aes(y=TP.FG.J01,color='real')) + 
+  geom_line(aes(y=trend_constant_month_usd_reserves_lagged,color='trend'))
+checkresiduals(ts_reg6)
+```
+ Now my work is done actually. My adjusted R-squared value is 0.9981 most of my regressors have significancy and residuals are less correlated and very close to normal distribution with 0 mean and constant variance. However for forecasting 04-2021 value there is no values of regressors in the model for 04-2021. Then I tried to look cross-correlations of CPI values and other regressors one-by-one and decided to lag index in the negative side which has the most correlation. 
+ 
+```{r}
+ccf(mydatatable$TP.FG.J01,mydatatable$TP.KTF10,12)
+ccf(mydatatable$TP.FG.J01,mydatatable$TP.AB.C2,12)
+ccf(mydatatable$TP.FG.J01,mydatatable$TP.DK.USD.A.YTL,12)
+```
+  All of them has biggest correlation value in the lag1 in negative side.Then I build ts_reg7 with trend+month+lagged regressors+lagged variables.
+  
+```{r}
+ts_reg7=lm(TP.FG.J01~trend+monthName+lag(TP.DK.USD.A.YTL,1)+lag(TP.KTF10,1)+lag(TP.AB.C2,1)+lag(TP.FG.J01,1)+lag(TP.FG.J01,2),mydatatable)
+```
+  Then I added new row to my data table for 04-2021 and fill this row with values which I know already (trend and month).
+  
+```{r}
+mydatatable=rbind(mydatatable,data.table(monthName=as.factor("Nis")),fill=T)
+mydatatable
+```
+```{r}
+mydatatable[,trend:=1:.N]
+mydatatable[,nextmonthprediction:=predict(ts_reg7,mydatatable)]
+mydatatable
+```
+```{r}
+Prediction = mydatatable[109,nextmonthprediction]
+Prediction
+```
+  After all these steps my model predicts 649.6415 CPI value for foods and nonalcaholic beverages in 04-2021 with lagged regressors, trend and month. 
+ 
+## Results
+
+  Consumer Price Index for foods and nonalcaholic beverages are highly related with USD-TRY exchange rate, Total Foreign Currency Reserves in Central Bank and Consumer Loan Interest. This means my work can be considered meaningful. In my work, the best time series regression model is ts_reg6 with 0.9981 adjusted R-squared value and 0.0005372 p-value of Breusch-Godfrey test. However to predict April 2021 value, I used ts_reg7 and made a prediction 649.6415 
+
+
+
+
