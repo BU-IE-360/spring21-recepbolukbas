@@ -8,3 +8,7 @@
 ## HOMEWORK 1 (April 18)
 
 [Here](files/HW1.html) is visiualization of data from EVDS with R.
+
+## HOMEWORK 2 (May 7)
+
+[Here](files/HW2/HW2.html) is my time series regression for predicting macroeconomics indicators.
