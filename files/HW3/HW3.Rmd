@@ -1,0 +1,355 @@
+---
+title: "HW3"
+author: "Recep Talha Bölükbaş"
+date: "28 05 2021"
+output: html_document
+---
+# Hourly Electric Consumption
+
+  Required libraries are listed below. 
+  
+```{r}
+library(data.table)
+library(ggplot2)
+library(stringr)
+require(lubridate)
+require(zoo)
+require(forecast)
+require(stats)
+```
+  
+## Data Reading and Manipulations 
+  
+  First of all we need to read the data and change it to an appropriate class type.I convert mydata to a data table to work on it easily.
+  
+```{r}
+mydata=read.csv("/Users/rtbol/Desktop/GercekZamanliTuketim.csv")
+elec_consumption = data.table(mydata)
+str(elec_consumption)
+is.data.table(elec_consumption)
+elec_consumption
+```
+  
+  To continue I need to make some manipulation on data such as preparing appropriate Date and changing Tüketim.Miktarı..Mwh. from char to num. There are 3 important changes to create proper date values. datewtime is my last column with full date and hours of day.
+  
+```{r}
+change = str_remove(elec_consumption$Tüketim.Miktarı..MWh., "[.]")
+elec_consumption[,Consumption:=change]
+change2 = gsub(",", ".",elec_consumption$Consumption)
+elec_consumption[,Consumption:=change2]
+elec_consumption$Consumption = as.numeric(elec_consumption$Consumption)
+class(elec_consumption$Consumption)
+change3 = gsub(":", ".", elec_consumption$Saat)
+elec_consumption[,Hours:=change3]
+elec_consumption$Hours = as.numeric(elec_consumption$Hours)
+elec_consumption[,Date:=as.Date(elec_consumption$Tarih,format="%d.%m.%Y")]
+elec_consumption[,datewtime:=ymd(Date)+dhours(Hours)]
+elec_consumption
+```
+  
+  I decided to look first general graph of our consumption values. Then to see more detail, I took 2-years part of my data and plot it.
+  
+```{r}
+ggplot(elec_consumption, aes(x=datewtime, y=Consumption)) + geom_line() + geom_point() + ggtitle("General Consumption Graph")
+ggplot(elec_consumption[Date>="2016-01-01" & Date<="2017-01-01"], aes(x=datewtime, y=Consumption)) + geom_line() + geom_point() + ggtitle("2 year Consumption Graph")
+elec_consumption[Date>="2016-03-01" & Date <="2016-03-31"]
+```
+
+
+  I need to change consumption value in 2016-03-27 02:00, since it is 0 it may lead me to make wrong analyzes.I decided to take average of all other values in 2016-03-27 and send it to 02:00. By that way, I will get rid of one big outlier. Then I checked the graph again.
+  
+```{r}
+avg = sum(elec_consumption[Date=="2016-03-27",Consumption])/23
+elec_consumption[Date == "2016-03-27" & Saat == "02:00",Consumption := avg]
+elec_consumption[Date == "2016-03-27" & Saat == "02:00"]
+ggplot(elec_consumption, aes(x=datewtime, y=Consumption)) + geom_line() + geom_point() + ggtitle("General Consumption Graph")
+```
+  
+  In our data it is possible to see some seasonality and trend. Especially sometimes consumption values decreased to deep values. To determine type of this seasonality beginning from hourly seasonality, I will try some seasonalities to my data and decompose data based on these seasonalities.
+
+## Decomposition of Data at Different Levels
+  
+   My first series will be hourly time series and I will check if there is an hourly seasonality or not. 
+
+```{r}
+ts_consumption_hourly = ts(elec_consumption$Consumption, freq = 24)
+dec_ts = decompose(ts_consumption_hourly, type="additive")
+plot(dec_ts)
+```
+  
+  In decomposition graph of hourly seasonality model, our graphs are really hard to make comments on it. All I can say that there is sometimes increasing sometimes decreasing trend graph and random part of decomposition mostly follows 0 mean and equal variance with some exceptional at the end of the data (most probably because of pandemic constraints in Turkey).  
+  
+  Next, I will look at the daily consumption values and I will plot 2 weeks daily consumption values between March 7th and March 21st. I tried to choose date interval without any holiday except weekends. 
+
+```{r}
+daily_cons = elec_consumption[,list(total_cons = sum(Consumption,na.rm=T)),by=list(Date)]
+daily_cons
+ggplot(daily_cons[Date<='2021-03-21' & Date>='2021-03-07'], aes(x=Date,y=total_cons)) + geom_line() + geom_point() + ggtitle("Daily Consumption for Two weeks")
+```
+  
+  We can say there is daily seasonality in our data. Sundays are the lowest consumption days and consumption value increases until Thursdays. Now I need to decompose my data in daily ts to make more comments.
+
+```{r}
+ts_daily = ts(daily_cons$total_cons,freq = 7)
+dec_ts_daily = decompose(ts_daily, type="additive")
+plot(dec_ts_daily)
+```
+  
+  Our seasonality data is again hard to discuss but now random part of decomposition is much more clear. I can see that it follows 0 mean and constant variance most of time, however most probably because of holidays there are again exceptional values. 
+  Now I will take each week. First default week value starts from Sunday, but our data begins with Friday. So I set week_start value to 5 which corresponds to Friday. 
+  After I found weekly total electricity consumption values, I plot the all data according to weeks. In the graph, biggest outliers are because of pandemic in March 2020. 
+
+```{r}
+daily_cons[,weekdate:=floor_date(daily_cons$Date,"week",week_start = 5)] #our data starts with Friday so we take Friday as first day
+daily_cons
+weekly_cons = daily_cons[,list(totalweek_cons =sum(total_cons, na.rm=T)), by=list(date(weekdate))]
+weekly_cons
+ggplot(weekly_cons, aes(x=date,y=totalweek_cons)) + geom_line() + geom_point() + ggtitle("Weekly Consumption")
+```
+    
+  I create time series with 52 frequency for weekly seasonality. Then I decomposed it.
+    
+```{r}
+ts_weekly = ts(weekly_cons$totalweek_cons, frequency = 52)
+dec_ts_weekly = decompose(ts_weekly, type="additive")
+plot(dec_ts_weekly)
+```
+    
+  In this plot it is possible to say that there is a seasonal pattern in decomposition and increasing trend over all data. However in random part, there is no randomness. It has seasonality again and its variance is not constant. 
+    I think, since we have less periods our random part of decomposition is now not seems like random. After that point it will be less random in every step. 
+    Next seasonality type is monthly seasonality: 
+
+```{r}
+daily_cons[,monthdate:=floor_date(daily_cons$Date,"month")]
+daily_cons
+monthly_cons = daily_cons[,list(totalmonth_cos =sum(total_cons, na.rm=T)), by=list(date(monthdate))]
+monthly_cons
+```
+```{r}
+ts_monthly = ts(monthly_cons$totalmonth_cos, frequency = 12)
+dec_ts_monthly = decompose(ts_monthly, type="additive")
+plot(dec_ts_monthly)
+```
+    
+  There is also monthly seasonalities and in random part there is an outlier after 5. It corresponds to pandemic in March 2020.
+  Last of my seasonality check is quarterly seasonality. 
+  
+```{r}
+daily_cons[,quarterdate:=floor_date(daily_cons$Date,"quarter")]
+daily_cons
+quarterly_cons = daily_cons[,list(totalquarter_cos =sum(total_cons, na.rm=T)), by=list(date(quarterdate))]
+quarterly_cons
+```
+
+```{r}
+ts_quarterly = ts(quarterly_cons$totalquarter_cos, frequency = 4)
+dec_ts_quarterly = decompose(ts_quarterly, type="additive")
+plot(dec_ts_quarterly)
+```
+  
+  Seasonality in decomposed quarterly time series can be seen in seasonal part. In each quarter of every year there is some seasonality. Trend is generally increasing except pandemic period. Another effect of pandemic can be seen in random part again. 
+
+## Hourly and Daily Decomposition (168 hours)
+      
+  Since I am going to build my model based on this seasonality and then I will forecast some values, first I will seperate my data to a training set which I will work on it and a test set which I will check my forecasted values on it.  
+    I found the length of my data and then calculated how many hours are there in 14-days period. I decided to take 46872 of my data to training test and remaining part into test set. 
+    
+```{r}
+length(elec_consumption$Consumption)
+14*24
+47208 - 336 
+elec_consumption_tr = head(elec_consumption$Consumption,46872)
+elec_consumption_te = tail(elec_consumption$Consumption,336)
+```
+  Now I will prepare a ts and decompose it. 
+
+```{r}
+ts_last = ts(elec_consumption_tr, frequency = 168)
+last_decomposed = decompose(ts_last, type ="additive")
+plot(last_decomposed)
+```
+  
+  Our graphs are very similar to both daily and hourly decomposed ones. In random part it generally fits to assumptions that it follows 0 mean and constant variance. However in some parts it violate this assumption because of holidays most probably. Huge violation occurs in between middle and last parts of the random graph which occurs because of pandemic in my opinion. 
+ 
+### Detrending and Deseasonalization
+  
+  I have to reach random part of this decomposition to make forecast on it. So I will deseasonalize and detrend my data.Then I will plot it to see whether it is the same with random or not. 
+  
+```{r}
+deseasonalized_last = ts_last - last_decomposed$seasonal
+detrended_deseasonalized_last = deseasonalized_last - last_decomposed$trend
+ts.plot(detrended_deseasonalized_last, xlab = "Time", ylab = "Consumption",main="Consumption Values without trend and seasonality")
+```
+
+### Finding Best AR Model
+  
+  I will try some ar models to my last random data "detrended_deseasonalized_last". I will start with p=1 and increase it 1 in each step to find better models with lower aic values.
+
+```{r}
+ar_model = arima(detrended_deseasonalized_last, order=c(1,0,0))
+ar_model
+checkresiduals(ar_model)
+ar_model2 = arima(detrended_deseasonalized_last, order=c(2,0,0))
+ar_model2
+checkresiduals(ar_model2)
+ar_model3 = arima(detrended_deseasonalized_last, order=c(3,0,0))
+ar_model3
+checkresiduals(ar_model3)
+ar_model4 = arima(detrended_deseasonalized_last, order=c(4,0,0))
+ar_model4
+checkresiduals(ar_model4)
+ar_model5 = arima(detrended_deseasonalized_last, order=c(5,0,0))
+ar_model5
+checkresiduals(ar_model5) # This model has the least aic value and its residuals are more likely to follow normal distribution
+```
+  
+  In general all of the ar models I tried have very huge aic values. Their residuals graph is somehow following normal distribution but there are too many outliers. The lowest aic value is in the ar_model5 in this case. This model is slightly better with 709581.
+
+## Finding Best MA Model
+  Again starting from q=1 I will try some models to my data. 
+  
+```{r}
+ma_model = arima(detrended_deseasonalized_last, order = c(0,0,1))
+ma_model
+checkresiduals(ma_model)
+ma_model2 = arima(detrended_deseasonalized_last, order = c(0,0,2))
+ma_model2
+checkresiduals(ma_model2)
+ma_model3 = arima(detrended_deseasonalized_last, order = c(0,0,3))
+ma_model3
+checkresiduals(ma_model3)
+ma_model4 = arima(detrended_deseasonalized_last, order = c(0,0,4))
+ma_model4
+checkresiduals(ma_model4)
+ma_model5 = arima(detrended_deseasonalized_last, order = c(0,0,5))
+ma_model5
+checkresiduals(ma_model5)  # This model has the least aic value and its residuals are more likely to follow normal distribution
+```
+  
+  These models are almost same with AR models. They again have too high aic values. The lowest aic value is 712280.4 which is in ma_model5. 
+
+## Trying AR-MA Models
+  
+  Now I will combine Ar and Ma models to find my last model to forecast on it. I will begin with 5,0,5 because both ar and ma models are better than others when p=5 and q=5.
+  However when they come together the best model becomes "arima4" which has the lowest aic value. p=3 d=5 in this model and model has 709481.1 aic value.
+  
+```{r}
+arima1 = arima(detrended_deseasonalized_last, order = c(5,0,5))
+arima1
+checkresiduals(arima1)
+arima2 = arima(detrended_deseasonalized_last, order = c(4,0,5)) 
+arima2
+checkresiduals(arima2)
+arima3 = arima(detrended_deseasonalized_last, order = c(5,0,4))
+arima3
+checkresiduals(arima3)
+arima4 = arima(detrended_deseasonalized_last, order = c(3,0,5)) #Has the lowest AIC value.
+arima4
+checkresiduals(arima4)
+arima5 = arima(detrended_deseasonalized_last, order = c(5,0,3))
+arima5
+checkresiduals(arima5)
+```
+
+## Fitted Model Before Forecast
+    
+  I will add my seasonal and trend values to fit my model on actual values. Then I looked last values of my fitted model to see how many NA's I have. After c(279,84) there are 84 NA's. This means that I need to forecast 84 more periods before 14 days. Then my forecasted ts model will start from c(279,85). 
+    
+```{r}
+last_fitted = detrended_deseasonalized_last - residuals(arima4)
+last_fitted_transformed = last_fitted + last_decomposed$seasonal + last_decomposed$trend
+tail(last_fitted_transformed,90)
+```
+  
+  I forecast 336+84 periods with predict() function. Then I will build ts model with freq 168 and it will start from c(279,85) which is the one point later than fitted model. 
+  I will plot actual values with black, fitted values with red. We can see that our fitted model really fits to actual values.To see more detailed, I used last little part of data. If I would use all of the data, I cannot see what is going on.
+  
+```{r}
+forecast_last = predict(arima4, n.ahead = 336+84)$pred
+forecast_last_ts = ts(forecast_last,frequency = 168, start=c(279,85))
+plot(ts_last, ylab = "Consumption",main="Electricity Consumption MWH",xlim=c(275,283))
+points(last_fitted_transformed, type = "l", col = 2, lty = 2, xlim=c(275,283))
+```
+  
+  Our forecast values are not including trend and seasonality. To evaluate our forecasted values we need to fit them to real model. So I will add "last_trend" for trend part and beginning from 1st seasonality I will add 420 seasonality points as seasonal part "for_seasonality". "forecast_last2" is my last forecasted model. 
+  Then I plot again actual values with black, fitted values with red and forecasted values with green in a graph. In this plot we can see that our forecasted values a little bit less than actual values. Reasons of this can be that we used an assumed trend value (we assume the last trend value is our trend value for all our forecasted periods) and Our arima model is not the best model to use in forecasting. 
+
+
+```{r}
+last_trend = tail(last_decomposed$trend[!is.na(last_decomposed$trend)],1)
+tail(last_decomposed$seasonal,1)
+for_seasonality = last_decomposed$seasonal[1:420]
+forecast_last2 = forecast_last_ts + last_trend + for_seasonality
+plot(ts_last, ylab = "Consumption",main="Electricity Consumption MWH",xlim=c(275,283))
+points(last_fitted_transformed, type = "l", col = 2, lty = 2, xlim=c(275,283))
+points(forecast_last2, type = "l", col = 3)
+```
+
+## Errors in Forecasting
+
+  Tail of my forecast_last2 belongs to 14 days period which should be forecasted. Then I take last 336 values of my forecasts and say it to "fourteen_days_forecast"
+  Then I will create "my_table" for see the date-hour and corresponding actual consumption values and forecasted consumption values. I used previous "elec_consumption_te" test set for actual values.
+  
+```{r}
+fourteen_days_forecast = tail(forecast_last2,336)
+
+my_table = data.table(forecasted_consumption=fourteen_days_forecast)
+my_table = my_table[,actual_consumption:=elec_consumption_te]
+datefor = seq(from = as.Date("2017-05-07"), to = as.Date("2017-05-20"), by = 'day')
+hourfor = seq(from = 0, to = 23)
+my_table = my_table[,forecasted_date:=rep(datefor,each=24)]
+my_table = my_table[,forecasted_hours:=rep(hourfor,14)]
+my_table = my_table[,forecasteddatewhour:=ymd(forecasted_date)+dhours(forecasted_hours)]
+my_table
+```
+
+  To evaluate daily forecast and calculate daily bias and mape, I prepare a table "daily_table" which includes total values of everyday in both actual and forecasted consumptions.
+
+```{r}
+daily_table = my_table[,list(daily_total_actual = sum(actual_consumption,na.rm=T)),by=list(forecasted_date)]
+a = my_table[,list(daily_total_forecasted = sum(forecasted_consumption,na.rm=T)),by=list(forecasted_date)]
+daily_table[,daily_total_forecasted:=a$daily_total_forecasted]
+daily_table
+```
+
+  I give the daily bias and mape formulas and prepare "daily_bias" and "mape" columns to "daily_table".
+
+```{r}
+daily_table = daily_table[,daily_bias:=(as.numeric(daily_table$daily_total_actual)-as.numeric(daily_table$daily_total_forecasted))/24]
+daily_table = daily_table[,mape:=abs(as.numeric(daily_total_actual)-as.numeric(daily_total_forecasted))/as.numeric(daily_total_actual)/24 * 100]
+daily_table
+```
+    
+  My daily bias is negative and too far from 0 in Ramadan Holidays. Because actual values are abnormally low in religious holidays. Our forecasted models are not considering this holiday effect. 
+  Again in the mape values our values are very good in normal days. However mape values are also increasing in Ramadan Holidays.
+
+```{r}
+WMAPE = sum(abs(as.numeric(daily_table$daily_total_actual)-as.numeric(daily_table$daily_total_forecasted))/ as.numeric(daily_table$daily_total_actual))* 100 * as.numeric(daily_table$daily_total_actual)/ sum(as.numeric(daily_table$daily_total_actual))
+WMAPE
+avg_WMAPE = sum(WMAPE)/14
+avg_WMAPE
+```
+  
+  Last I calculated WMAPE for my daily data. My WMAPE values are now high in normal days and it is slightly low in Ramadan Holidays. My average WMAPE value is 12.73 which is not very good value. My model should be developed for better forecast values. 
+
+## Conclusion 
+  
+  I did manipulations on my data and tried to find seasonality. Then we decided to use seasonality in every 168 hours.The best arma model with lowest aic value becomes "arima4". Then I used this model to forecast upcoming 14 days. Our forecasted values are relatively lower than actual values. However in Ramadan Holidays, actual values are extremely low which is not considered in our model. Because of this my model have not good evaluation values.
+  
+## References 
+  
+  1- [Hourly Electricity Consumption Values from EPİAŞ](https://seffaflik.epias.com.tr/transparency/tuketim/gerceklesen-tuketim/gercek-zamanli-tuketim.xhtml)
+  
+  2- [MAPE Formula](https://vedexcel.com/how-to-calculate-mape-in-python/)
+  
+  3- [WMAPE Formula](https://ibf.org/knowledge/glossary/weighted-mean-absolute-percentage-error-wmape-299)
+  
+  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
