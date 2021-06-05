@@ -12,3 +12,7 @@
 ## HOMEWORK 2 (May 7)
 
 [Here](files/HW2/HW2.html) is my time series regression for predicting macroeconomics indicators.
+
+## HOMEWORK 3 (June 5)
+
+[Here](files/HW3/HW3.html) is forecasting model and forecast values of Hourly Electricity Consumption in Turkey.
