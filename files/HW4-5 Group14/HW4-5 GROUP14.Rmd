@@ -1,0 +1,953 @@
+---
+title: "HW4-5"
+author: "Recep Talha Bölükbaş - Cüneyt Çakır - Okan Yıldırım Group14"
+date: "02 07 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# ALTERNATIVE FORECASTING STRATEGIES 
+
+  Our project data consist of 9 diffirent products to be forecasted. In this homework we will try to develop some forecasting models with arima, seasonal arima and additional regressors. First of all we need to prepare our data and required libraries. Then we will follow the steps indicated in homework description.
+
+Required Libraries:
+```{r}
+
+library(ggplot2)
+library(plotly)
+library(lubridate)
+library(forecast)
+library(data.table)
+
+```
+  Now it is time to read the data and make some manipulation on it to inspect all products particularly. We will use set.seed to block any randomness in splitting data to products.
+```{r}
+
+data1 = read.csv("C:/Users/rtbol/Desktop/ProjectRawData.csv", header = TRUE)
+data1$event_date = as.Date(data1$event_date)
+data1 = data1[order(data1$event_date),]
+
+set.seed(0)
+split_list = split(data1, data1$product_content_id)
+
+yuz_temizleyici = split_list[[1]]
+islak_mendil = split_list[[2]]
+kulaklik = split_list[[3]]
+supurge = split_list[[4]]
+tayt = split_list[[5]]
+bikini327 = split_list[[6]]
+dis_fircasi = split_list[[7]]
+mont = split_list[[8]]
+bikini733 = split_list[[9]]
+
+```
+ From now on, we have all products one by one in their own data tables and we will continue with "yuz_temizleyici" in task1
+ 
+## Data Visualization and Decomposition
+```{r}
+
+ggplotly(ggplot(yuz_temizleyici, aes(x=event_date,y=sold_count)) + geom_line() + ggtitle("Yüz Temizleyici Satış Grafiği") + xlab("Tarih") + ylab("Satış Miktarı"))
+yuz_temizleyici = data.table(yuz_temizleyici)
+
+```
+ This data is the best among all products because we have variables clearly. There are no zero values in sold_count which may lead some mistake.Now we will try to look the seasonality and trend of timeseries for weekly,monthly,quarterly periods. We will use additive type of decomposition for all of the models below. So if we want to deseasonalize or detrend the observations we will use substraction. 
+```{r}
+
+ts_weekly_yuztemizleyici = ts(yuz_temizleyici$sold_count, freq = 7)
+
+dec_weekly_yuztemizleyici = decompose(ts_weekly_yuztemizleyici, type = "additive")
+plot(dec_weekly_yuztemizleyici)
+dec_weekly_yuztemizleyici$seasonal
+
+```
+ In weekly decomposition, we have weekly seasonality and some choppy trend which tend to increase in long time. Peaks of the data may be because of discount days of Trendyol. 
+```{r}
+
+ts_monthly_yuztemizleyici = ts(yuz_temizleyici$sold_count, freq = 30)
+
+dec_monthly_yuztemizleyici = decompose(ts_monthly_yuztemizleyici, type = "additive")
+plot(dec_monthly_yuztemizleyici)
+
+```
+  Monthly decomposition also shows that there is monthly seasonality and trend of this decomposition is increasing especially in the second half of data. Again effects of discount days can be seen clearly.
+```{r}
+
+ts_quarterly_yuztemizleyici = ts(yuz_temizleyici$sold_count, freq = 90)
+
+dec_quarterly_yuztemizleyici = decompose(ts_quarterly_yuztemizleyici, type = "additive")
+plot(dec_quarterly_yuztemizleyici)
+
+```
+  In quarterly ts, seasonal part is not clear but trend is increasing. 
+  
+  Now it is time to plot another product "islak_mendil".
+```{r}
+
+ggplotly(ggplot(islak_mendil, aes(x=event_date,y=sold_count)) + geom_line() + ggtitle("Islak Mendil Satış Grafiği") + xlab("Tarih") + ylab("Satış Miktarı"))
+islak_mendil = data.table(islak_mendil)
+
+```
+
+```{r}
+ts_weekly_islakmendil = ts(islak_mendil$sold_count, freq = 7)
+
+dec_weekly_islakmendil = decompose(ts_weekly_islakmendil, type = "additive")
+plot(dec_weekly_islakmendil)
+dec_weekly_islakmendil$seasonal
+
+```
+  There is weekly seasonality in islak_mendil data. Trend of this decomposition is not increasing or decreasing but it highly effected by discount days.
+```{r}
+
+ts_monthly_islakmendil = ts(islak_mendil$sold_count, freq = 30)
+
+dec_monthly_islakmendil = decompose(ts_monthly_islakmendil, type = "additive")
+plot(dec_monthly_islakmendil)
+
+```
+  Monthly seasonality can be seen in the seasonal part of the decomposition. Trend is somehow increasing until discount days. After a few peaks in discount days trend again goes down and shows another increase in the last part of data.
+```{r}
+
+ts_quarterly_islakmendil = ts(islak_mendil$sold_count, freq = 90)
+
+dec_quarterly_islakmendil = decompose(ts_quarterly_islakmendil, type = "additive")
+plot(dec_quarterly_islakmendil)
+
+```
+  There is a quarterly seasonality in the data but again it is not clear. Trend of the data is increasing in the long run but there is some waves in it.
+  
+  The next data is "kulaklik". First we will plot the data to see general structure of data.
+```{r}
+
+ggplotly(ggplot(kulaklik, aes(x=event_date,y=sold_count)) + geom_line() + ggtitle("Bluetooth Kulaklık Satış Grafiği") + xlab("Tarih") + ylab("Satış Miktarı"))
+kulaklik = data.table(kulaklik)
+
+```
+  
+```{r}
+ts_weekly_kulaklik = ts(kulaklik$sold_count, freq = 7)
+
+dec_weekly_kulaklik = decompose(ts_weekly_kulaklik , type = "additive")
+plot(dec_weekly_kulaklik)
+dec_weekly_kulaklik$seasonal
+
+```
+  There is weekly seasonality and decreasing trend in the long run. However effects of the discount days block the continuous decrease of trend.
+```{r}
+
+ts_monthly_kulaklik = ts(kulaklik$sold_count, freq = 30)
+
+dec_monthly_kulaklik = decompose(ts_monthly_kulaklik, type = "additive")
+plot(dec_monthly_kulaklik)
+
+```
+  Monthly seasonality can be seen in seasonal part of decomposition. Trend is decreasing but it reaches the beginning level at the end of the data.
+```{r}
+
+ts_quarterly_kulaklik = ts(kulaklik$sold_count, freq = 90)
+
+dec_quarterly_kulaklik = decompose(ts_quarterly_kulaklik, type = "additive")
+plot(dec_quarterly_kulaklik)
+
+```
+  We can say that there is quarterly seasonality in data. In trend part, there is decreasing trend in the first half of the data and then increasing trend at the end.
+  
+  Our next data is "supurge". We can see from the plot that, it has not huge sale numbers except some peaks in the discount days.
+```{r}
+
+ggplotly(ggplot(supurge, aes(x=event_date,y=sold_count)) + geom_line() + ggtitle("Dik Süpürge Satış Grafiği") + xlab("Tarih") + ylab("Satış Miktarı"))
+supurge = data.table(supurge)
+
+```
+
+```{r}
+ts_weekly_supurge = ts(supurge$sold_count, freq = 7)
+
+dec_weekly_supurge = decompose(ts_weekly_supurge , type = "additive")
+plot(dec_weekly_supurge)
+dec_weekly_supurge$seasonal
+
+```
+  Weekly seasonality exists just like previous products. Trend shows a little bit decreasing trend again exceptionals of discount days.
+```{r}
+
+ts_monthly_supurge = ts(supurge$sold_count, freq = 30)
+
+dec_monthly_supurge = decompose(ts_monthly_supurge, type = "additive")
+plot(dec_monthly_supurge)
+
+```
+  Our monthly seasonality is again similar to other products. There is an wavy trend plot in decomposition plots, it sometimes increases and sometimes decreases.
+```{r}
+
+ts_quarterly_supurge = ts(supurge$sold_count, freq = 90)
+
+dec_quarterly_supurge = decompose(ts_quarterly_supurge, type = "additive")
+plot(dec_quarterly_supurge)
+
+```
+  There is quarterly seasonality in the data but it is not clear and regular. Trend is increasing until discount days and then it is decreasing.
+
+  The next product is "tayt". The effects of discount days, especially "9-10-11 Nov" is the most obvious one among other products in "tayt".
+```{r}
+
+ggplotly(ggplot(tayt, aes(x=event_date,y=sold_count)) + geom_line() + ggtitle("Tayt Satış Grafiği") + xlab("Tarih") + ylab("Satış Miktarı"))
+tayt = data.table(tayt)
+
+```
+  We will look to data "tayt" in weekly, monthly and quarterly level. Decomposition of this data in different levels again show almost same features with previous products. Weekly and monthly seasonality is clear and quarterly seasonality have some outlier. Trend of the decomposition increases from mid of the data and the it decreases. 
+```{r}
+
+ts_weekly_tayt = ts(tayt$sold_count, freq = 7)
+
+dec_weekly_tayt = decompose(ts_weekly_tayt , type = "additive")
+plot(dec_weekly_tayt)
+dec_weekly_tayt$seasonal
+
+ts_monthly_tayt = ts(tayt$sold_count, freq = 30)
+
+dec_monthly_tayt = decompose(ts_monthly_tayt, type = "additive")
+plot(dec_monthly_tayt)
+
+ts_quarterly_tayt = ts(tayt$sold_count, freq = 90)
+
+dec_quarterly_tayt = decompose(ts_quarterly_tayt, type = "additive")
+plot(dec_quarterly_tayt)
+
+```
+  Now we will look at the first bikini data which is "bikini327". It can be seen in the plot that this data is not appropriate for building models on them but we have to do. So we will continue with this data but most probably it will give us huge errors at the end.
+```{r}
+
+ggplotly(ggplot(bikini327, aes(x=event_date,y=sold_count)) + geom_line() + ggtitle("Bikini Üstü Satış Grafiği") + xlab("Tarih") + ylab("Satış Miktarı"))
+bikini327 = data.table(bikini327)
+
+```
+
+```{r}
+ts_weekly_bikini327 = ts(bikini327$sold_count, freq = 7)
+
+dec_weekly_bikini327 = decompose(ts_weekly_bikini327 , type = "additive")
+plot(dec_weekly_bikini327)
+dec_weekly_bikini327$seasonal
+
+ts_monthly_bikini327 = ts(bikini327$sold_count, freq = 30)
+
+dec_monthly_bikini327 = decompose(ts_monthly_bikini327, type = "additive")
+plot(dec_monthly_bikini327)
+
+ts_quarterly_bikini327 = ts(bikini327$sold_count, freq = 90)
+
+dec_quarterly_bikini327 = decompose(ts_quarterly_bikini327, type = "additive")
+plot(dec_quarterly_bikini327)
+
+```
+Since we have a dirty data, it is hard to make comment on its trend values but we can say that there is some seasonality in all above decompositions. 
+
+Next data is "dis_fircasi" this data is better than previous bikini data. In general we can say that the sold_count is increasing. 
+```{r}
+
+ggplotly(ggplot(dis_fircasi, aes(x=event_date,y=sold_count)) + geom_line() + ggtitle("Şarj Edilebilir Diş Fırçası Satış Grafiği") + xlab("Tarih") + ylab("Satış Miktarı"))
+dis_fircasi = data.table(dis_fircasi)
+
+```
+
+```{r}
+ts_weekly_disfircasi = ts(dis_fircasi$sold_count, freq = 7)
+
+dec_weekly_disfircasi = decompose(ts_weekly_disfircasi , type = "additive")
+plot(dec_weekly_disfircasi)
+dec_weekly_disfircasi$seasonal
+
+ts_monthly_disfircasi = ts(dis_fircasi$sold_count, freq = 30)
+
+dec_monthly_disfircasi = decompose(ts_monthly_disfircasi, type = "additive")
+plot(dec_monthly_disfircasi)
+
+ts_quarterly_disfircasi = ts(dis_fircasi$sold_count, freq = 90)
+
+dec_quarterly_disfircasi = decompose(ts_quarterly_disfircasi, type = "additive")
+plot(dec_quarterly_disfircasi)
+
+```
+ In decomposition, the general increasing structure of the data can be seen all of the trend parts of decomposition in different levels. However, in quarterly decomposition seasonal part is not clear. We can say that there is weekly seasonality and monthly seasonality.
+ 
+Next data will be one of the worst data which is "mont". There is too many 0's in data which will lead us to predict wrong/meaningless values. But we will do decomposition for same frequencies with other products. 
+```{r}
+
+ggplotly(ggplot(mont, aes(x=event_date,y=sold_count)) + geom_line() + ggtitle("Mont Satış Grafiği") + xlab("Tarih") + ylab("Satış Miktarı"))
+mont = data.table(mont)
+
+```
+```{r}
+ts_weekly_mont = ts(mont$sold_count, freq = 7)
+
+dec_weekly_mont = decompose(ts_weekly_mont , type = "additive")
+plot(dec_weekly_mont)
+dec_weekly_mont$seasonal
+
+ts_monthly_mont = ts(mont$sold_count, freq = 30)
+
+dec_monthly_mont = decompose(ts_monthly_mont, type = "additive")
+plot(dec_monthly_mont)
+
+ts_quarterly_mont = ts(mont$sold_count, freq = 90)
+
+dec_quarterly_mont = decompose(ts_quarterly_mont, type = "additive")
+plot(dec_quarterly_mont)
+
+```
+We can see seasonalities for all the decompositions above. Trend only gives meaningful values when actual values are nonzero.
+
+Next data is the second bikini data "bikini733". Again this is also a dirty data only the last part of the data gives meaningful values. Old data is 0 always. This old data most probably will lead us to predict with huge errors.
+```{r}
+
+ggplotly(ggplot(bikini733, aes(x=event_date,y=sold_count)) + geom_line() + ggtitle("Bikini Üstü Satış Grafiği") + xlab("Tarih") + ylab("Satış Miktarı"))
+bikini733 = data.table(bikini733)
+
+```
+
+```{r}
+ts_weekly_bikini733 = ts(bikini733$sold_count, freq = 7)
+
+dec_weekly_bikini733 = decompose(ts_weekly_bikini733 , type = "additive")
+plot(dec_weekly_bikini733)
+dec_weekly_bikini733$seasonal
+
+ts_monthly_bikini733 = ts(bikini733$sold_count, freq = 30)
+
+dec_monthly_bikini733 = decompose(ts_monthly_bikini733, type = "additive")
+plot(dec_monthly_bikini733)
+
+ts_quarterly_bikini733 = ts(bikini733$sold_count, freq = 90)
+
+dec_quarterly_bikini733 = decompose(ts_quarterly_bikini733, type = "additive")
+plot(dec_quarterly_bikini733)
+
+```
+There is an increasing trend at the end of the data. Seasonality exists for weekly, monthly and quarterly levels.
+
+## Task 2 ARIMA MODELS
+
+  We will use auto.arima function to deseasonalized and detrended (random) parts of the products for determining the best arima or seasonal arima models for our products. We have decided to use weekly decomposition for all products because weekly decomposition gave us better trend and seasonality in all of products. It will be easy to use same frequency in all models.
+```{r}
+
+deseasonal_yuztemizleyici = ts_weekly_yuztemizleyici - dec_weekly_yuztemizleyici$seasonal
+detrended_yuztemizleyici = deseasonal_yuztemizleyici - dec_weekly_yuztemizleyici$trend
+
+arima_yuztemizleyici = auto.arima(detrended_yuztemizleyici)
+arima_yuztemizleyici
+checkresiduals(arima_yuztemizleyici)
+
+```
+  This gives ARIMA(4,0,0)(0,0,1) model as a best with aic value 3517.94 The p value of Ljung-Box test is a small value however there is not much correlated lags in ACF graph of checkresiduals() function.
+```{r}
+
+deseasonal_islakmendil = ts_weekly_islakmendil - dec_weekly_islakmendil$seasonal
+detrended_islakmendil = deseasonal_islakmendil - dec_weekly_islakmendil$trend
+
+arima_islakmendil = auto.arima(detrended_islakmendil)
+arima_islakmendil
+checkresiduals(arima_islakmendil)
+
+```
+  "islakmendil" data gives MA(1) model with 5070.76 aic value. This aic value can be a little bit high. Ljung-Box test gives small p value which is not good for us. ACF graph has one big outlier in lag 2. There is no more interesting thing.
+```{r}
+
+deseasonal_kulaklik = ts_weekly_kulaklik - dec_weekly_kulaklik$seasonal
+detrended_kulaklik = deseasonal_kulaklik - dec_weekly_kulaklik$trend
+
+arima_kulaklik = auto.arima(detrended_kulaklik)
+arima_kulaklik
+checkresiduals(arima_kulaklik)
+
+```
+  For data "kulaklik" auto.arima function gives again MA(1) model but this time it has 4550.4 aic value. P value again not good but higher than previous model. Again same lag value with "islakmendil" is highly correlated. Other lags fit the appropriate interval in ACF.
+```{r}
+
+deseasonal_supurge = ts_weekly_supurge - dec_weekly_supurge$seasonal
+detrended_supurge = deseasonal_supurge - dec_weekly_supurge$trend
+
+arima_supurge = auto.arima(detrended_supurge)
+arima_supurge
+checkresiduals(arima_supurge)
+
+```
+  In "supurge" data, this time we have ARIMA(2,0,2)(0,0,1) model and 3200.57 aic value. P value is low this time and there are some lags which are highly correlated in ACF.
+```{r}
+
+deseasonal_tayt = ts_weekly_tayt - dec_weekly_tayt$seasonal
+detrended_tayt = deseasonal_tayt - dec_weekly_tayt$trend
+
+arima_tayt = auto.arima(detrended_tayt)
+arima_tayt
+checkresiduals(arima_tayt)
+
+```
+  MA(2) model is the best model for data "tayt" according to auto.arima function. 5662.56 aic value is a little bit high. Some of the lags are highly correlated in ACF and not following normal distribution. High peak of the data in discount days may be the reason behind that.
+```{r}
+
+
+deseasonal_bikini327 = ts_weekly_bikini327 - dec_weekly_bikini327$seasonal
+detrended_bikini327 = deseasonal_bikini327 - dec_weekly_bikini327$trend
+
+arima_bikini327 = auto.arima(detrended_bikini327)
+arima_bikini327
+checkresiduals(arima_bikini327)
+
+```
+  ARIMA(0,0,1)(0,0,1) is the model given by auto.arima function. Model has 2291.07 aic value. Since this data is not a good data because of too many 0 values, we can see in the ACF graph that some lags are highly correlated.
+```{r}
+
+deseasonal_disfircasi = ts_weekly_disfircasi - dec_weekly_disfircasi$seasonal
+detrended_disfircasi = deseasonal_disfircasi - dec_weekly_disfircasi$trend
+
+arima_disfircasi = auto.arima(detrended_disfircasi)
+arima_disfircasi
+checkresiduals(arima_disfircasi)
+
+```
+ auto.arima function give MA(1) model for the data "dis_fircasi". Its aic value is 3607.01. Especially lags 2 and 3 are highly correlated in ACF graph.
+```{r}
+
+deseasonal_mont = ts_weekly_mont - dec_weekly_mont$seasonal
+detrended_mont = deseasonal_mont - dec_weekly_mont$trend
+
+arima_mont = auto.arima(detrended_mont)
+arima_mont
+checkresiduals(arima_mont)
+
+```
+  Mont data was the worst data among our products and it gives AR(5) model as a best model. It has 1659.86 aic value. Lag 6 is the most correlated lag value in ACF. Data is not following normal distribution. 
+```{r}
+
+deseasonal_bikini733 = ts_weekly_bikini733 - dec_weekly_bikini733$seasonal
+detrended_bikini733 = deseasonal_bikini733 - dec_weekly_bikini733$trend
+
+arima_bikini733 = auto.arima(detrended_bikini733)
+arima_bikini733
+checkresiduals(arima_bikini733)
+
+```
+Last data is "bikini733" and this time we have ARIMA(2,0,1).AIC value is 2540.97. This data was also bad with too many empty values.
+
+## REGRESSION MODELS
+
+  In this part we will use the models we used during project. We had found the best regression models with their R-squared values and significancy of its regressors. In this part we check significancy and most of the regressors were highly significant. 
+```{r}
+
+temizleyici_reg = lm(sold_count~price+basket_count, yuz_temizleyici)
+summary(temizleyici_reg)
+checkresiduals(temizleyici_reg)
+
+```
+Adjusted R-squared = 0.7937 and both of the regressors are too significant. First 2 lags of the model are highly correlated in ACF. In these models we will use in homework do not include discount variable. So these correlations can be considered as normal.
+```{r}
+
+islakmendil_reg = lm(sold_count~basket_count+category_sold+category_visits+category_favored, islak_mendil)
+summary(islakmendil_reg)
+checkresiduals(islakmendil_reg)
+
+```
+Adjusted R_squared = 0.9339 which is too good. All of the regressors were too significant. The first 3 lags of the model are highly correlated in ACF.
+```{r}
+
+kulaklik_reg = lm(sold_count~visit_count+basket_count+category_sold+category_visits, kulaklik)
+summary(kulaklik_reg)
+checkresiduals(kulaklik_reg)
+
+```
+Adjusted R-squared = 0.8327 which is good actually. count part of the checkresiduals function can be considered as follows normal distribution with some exceptionals. However ACF function shows that all lag values are highly correlated. 
+```{r}
+
+supurge_reg = lm(sold_count~favored_count+basket_count+category_sold+category_visits+ty_visits, supurge)
+summary(supurge_reg)
+checkresiduals(supurge_reg)
+
+```
+Adjusted R-squared = 0.9053 and all of the regressors are too significant. These outputs are too good to be used in prediction. However our ACF for residuals shows high correlation for too many lags.
+```{r}
+
+tayt_reg = lm(sold_count~price+visit_count+basket_count+category_sold+category_visits, tayt)
+summary(tayt_reg)
+checkresiduals(tayt_reg)
+
+```
+Adjusted R-squared = 0.942 and all of the regressors are again too significant. In acf first 3 lags have high correlation. Even so we thought that this model is good enough.
+```{r}
+
+bikini327_reg = lm(sold_count~basket_count, bikini327)
+summary(bikini327_reg)
+checkresiduals(bikini327_reg)
+
+```
+This time our Adjusted R-squared = 0.9025 and regressor of the model is too significant. However data is not good with too many 0's. Effect of this can be seen in the outputs of the checkresiduals function. We can say that these zeros will lead us to make wrong predictions.
+```{r}
+
+disfircasi_reg = lm(sold_count~visit_count+favored_count+basket_count+ty_visits,dis_fircasi)
+summary(disfircasi_reg)
+checkresiduals(disfircasi_reg)
+
+```
+Adjusted R-squared = 0.9214 and all of the regressors are too significant. Lags in the ACF shows high correlation until lag 13.
+
+Now since the mont model in our project is a little bit different, we will try to check all possible regressors and take the most significant ones in the second model. 
+Adjusted R-squared = 0.8418 in the second model and both of the regressors are too significant however lags show too high correlation except some of them. Since the data is not good these can be considered normal again.
+```{r}
+
+mont_reg = lm(sold_count~.,mont)
+summary(mont_reg)
+checkresiduals(mont_reg)
+
+mont_reg2 = lm(sold_count~basket_count+category_favored, mont)
+summary(mont_reg2)
+checkresiduals(mont_reg2)
+
+```
+
+```{r}
+
+bikini733_reg = lm(sold_count~basket_count+category_sold,bikini733)
+summary(bikini733_reg)
+checkresiduals(bikini733_reg)
+
+```
+This is our last regression model for "bikini733" data. Both of the regressors are too significant and adjusted r-squared = 0.9632. We do not need to comment on checkresiduals function because data is built with too many 0's until the last part. 
+
+## Arima Models With Regressors
+
+  In this part we will use the best arima models for each products which are found with auto.arima() function in the previous part. Then we will add these models the most significant regressors we used in the regression models. 
+  First we will prepare test data for each of the products. We will use these test sets for comparing models arima and arima+regressors.
+```{r}
+
+yuz_temizleyici_test = tail(yuz_temizleyici,7)
+islak_mendil_test = tail(islak_mendil,7)
+kulaklik_test = tail(kulaklik,7)
+supurge_test = tail(supurge,7)
+tayt_test = tail(tayt,7)
+bikini327_test = tail(bikini327,7)
+dis_fircasi_test = tail(dis_fircasi,7)
+mont_test = tail(mont,7)
+bikini733_test = tail(bikini733,7)
+
+```
+
+  From now on, we will create variables outside of the model because of the structure of xreg parameter. Then we will add them into models with cbind(). 
+```{r}
+
+price_temizleyici = yuz_temizleyici$price
+basketcount_temizleyici = yuz_temizleyici$basket_count
+
+sarimax_yuztemizleyici=arima(detrended_yuztemizleyici,order=c(4,0,0), seasonal = c(0,0,1), xreg= cbind(price_temizleyici,basketcount_temizleyici))
+sarimax_yuztemizleyici
+checkresiduals(sarimax_yuztemizleyici)
+
+```
+New aic value is 3412.42 which is better than previous arima model without any regressors.
+```{r}
+
+basketcount_mendil = islak_mendil$basket_count
+categorysold_mendil = islak_mendil$category_sold
+categoryvisits_mendil = islak_mendil$category_visits
+categoryfavored_mendil = islak_mendil$category_favored
+
+sarimax_islakmendil= arima(detrended_islakmendil,order=c(0,0,1),xreg= cbind(basketcount_mendil,categorysold_mendil,categoryvisits_mendil,categoryfavored_mendil))
+sarimax_islakmendil
+checkresiduals(sarimax_islakmendil)
+
+```
+New aic value is 4701.8 this time and it is better than previous arima model for data "islak_mendil".
+```{r}
+
+visitcount_kulaklik = kulaklik$visit_count
+basketcount_kulaklik = kulaklik$basket_count
+categorysold_kulaklik = kulaklik$category_sold
+categoryvisits_kulaklik = kulaklik$category_visits
+
+sarimax_kulaklik= arima(detrended_kulaklik,order=c(0,0,1),xreg= cbind(visitcount_kulaklik,basketcount_kulaklik,categorysold_kulaklik,categoryvisits_kulaklik))
+sarimax_kulaklik
+checkresiduals(sarimax_kulaklik)
+
+```
+Aic value is 4348.2 which is slightly better than previous model for data "kulaklik".
+```{r}
+
+favoredcount_supurge = supurge$favored_count
+basketcount_supurge = supurge$basket_count
+categorysold_supurge = supurge$category_sold
+categoryvisits_supurge = supurge$category_visits
+
+sarimax_supurge=arima(detrended_supurge,order=c(2,0,2), seasonal = c(0,0,1), xreg= cbind(favoredcount_supurge,basketcount_supurge,categorysold_supurge,categoryvisits_supurge))
+sarimax_supurge
+checkresiduals(sarimax_supurge)
+
+```
+2920.04 is our new aic value for data "supurge". Arima model without any regressors had 3200 aic value which is worse than new model with regressors.
+```{r}
+
+price_tayt = tayt$price
+visitcount_tayt = tayt$visit_count
+basketcount_tayt = tayt$basket_count
+categorysold_tayt = tayt$category_sold
+categoryvisits_tayt = tayt$category_visits
+
+sarimax_tayt=arima(detrended_tayt,order=c(0,0,2), xreg= cbind(price_tayt,visitcount_tayt,basketcount_tayt,categorysold_tayt,categoryvisits_tayt))
+sarimax_tayt
+checkresiduals(sarimax_tayt)
+
+```
+New aic value is 5244.49 this is also better than previous one.
+```{r}
+
+basketcount_bikini327 = bikini327$basket_count
+
+sarimax_bikini327=arima(detrended_bikini327,order=c(0,0,1), seasonal = c(0,0,1), xreg= basketcount_bikini327)
+sarimax_bikini327
+checkresiduals(sarimax_bikini327)
+
+```
+Even in the bad data, our aic value slightly decreased and become better (From 2291.07 to 2272.13)
+```{r}
+
+visitcount_firca = dis_fircasi$visit_count
+favoredcount_firca = dis_fircasi$favored_count
+basketcount_firca = dis_fircasi$basket_count
+
+sarimax_firca=arima(detrended_disfircasi,order=c(0,0,1), xreg= cbind(visitcount_firca,favoredcount_firca,basketcount_firca))
+sarimax_firca
+checkresiduals(sarimax_firca)
+
+```
+3451.16 is our new aic value which is sligthly better than previous 3607.01
+```{r}
+
+basketcount_mont = mont$basket_count
+
+sarimax_mont=arima(detrended_mont,order=c(5,0,0), xreg= basketcount_mont)
+sarimax_mont
+checkresiduals(sarimax_mont)
+
+```
+Mont is the one of the worst data among our products and its aic value in this case(with regressors) is 1415.67 which is better than previous model without any regressors.
+```{r}
+
+basketcount_bikini733 = bikini733$basket_count
+categorysold_bikini733 = bikini733$category_sold
+
+sarimax_bikini733 = arima(detrended_bikini733,order=c(2,0,1), xreg= cbind(basketcount_bikini733,categorysold_bikini733))
+sarimax_bikini733
+checkresiduals(sarimax_bikini733)
+
+```
+Last model is for bikini733 data which is a bad data again. Its aic value were 2540 before and now 2539.96 we can say there is not good improvement according to aic values of models.
+
+## PREDICTIONS WITH BOTH MODELS 
+
+  In this part we will make predictions with predict functions for both models in each product. For arima models with regressors we need new_xreg parameter in predict function which corresponds to values of regressors in the test set. We will prepare variables out of the predict function and this time we will also prepare matrices from them again out of the predict function because of an error that "xreg and new_xreg have not the same column number". We will create xreg_new1,2,3... variables for all products. 
+  After using predict function we will calculate last trend value and seasonal part corresponds to our test period (2:8) and add them into outcomes of predict funtion. The predicted values will be in appropriate form with seasonal and trend part now.
+
+  Then we will create last data tables which includes actual sold_count values in the actual column, predictions made by arima models under arimaprediction column and predictions made by arima models with regressors under sarimaxprediction column. We will use these last data tables when we compare results (performance) of models.
+  
+```{r}
+## YUZTEMİZLEYİCİ
+pricetest_temizleyici = yuz_temizleyici_test$price
+basketcounttest_temizleyici = yuz_temizleyici_test$basket_count
+xreg_new = cbind(pricetest_temizleyici,basketcounttest_temizleyici)
+
+sarimax_prediction = predict(sarimax_yuztemizleyici, newxreg = xreg_new)
+arima_prediction = predict(arima_yuztemizleyici, newdata = yuz_temizleyici_test, n.ahead = 7)
+
+last_trend_temizleyici = tail(dec_weekly_yuztemizleyici$trend[!is.na(dec_weekly_yuztemizleyici$trend)],1)
+seasonality_temizleyici = dec_weekly_yuztemizleyici$seasonal[2:8]
+
+predsarimax = sarimax_prediction$pred + last_trend_temizleyici + seasonality_temizleyici
+predarima = arima_prediction$pred + last_trend_temizleyici + seasonality_temizleyici
+
+lastyuztemizleyici = data.table()
+lastyuztemizleyici = lastyuztemizleyici[,actual:=yuz_temizleyici_test$sold_count]
+lastyuztemizleyici = lastyuztemizleyici[,arimaprediction := predarima]
+lastyuztemizleyici = lastyuztemizleyici[,sarimaxprediction := predsarimax]
+
+## ISLAKMENDIL
+basketcounttest_mendil = islak_mendil_test$basket_count
+categorysoldtest_mendil = islak_mendil_test$category_sold
+categoryvisitstest_mendil = islak_mendil_test$category_visits
+categoryfavoredtest_mendil = islak_mendil_test$category_favored
+xreg_new2 = cbind(basketcounttest_mendil,categorysoldtest_mendil,categoryvisitstest_mendil,categoryfavoredtest_mendil)
+
+sarimax_prediction2 = predict(sarimax_islakmendil, newxreg = xreg_new2)
+arima_prediction2 = predict(arima_islakmendil, newdata = islak_mendil_test, n.ahead = 7)
+
+last_trend_mendil = tail(dec_weekly_islakmendil$trend[!is.na(dec_weekly_islakmendil$trend)],1)
+seasonality_mendil = dec_weekly_islakmendil$seasonal[2:8]
+
+predsarimax2 = sarimax_prediction2$pred + last_trend_mendil + seasonality_mendil
+predarima2 = arima_prediction2$pred + last_trend_mendil + seasonality_mendil
+
+lastmendil = data.table()
+lastmendil = lastmendil[,actual:=islak_mendil_test$sold_count]
+lastmendil = lastmendil[,arimaprediction:=predarima2]
+lastmendil = lastmendil[,sarimaxprediction:=predsarimax2]
+
+## KULAKLIK
+visitcounttest_kulaklik = kulaklik_test$visit_count
+basketcounttest_kulaklik = kulaklik_test$basket_count
+categorysoldtest_kulaklik = kulaklik_test$category_sold
+categoryvisitstest_kulaklik = kulaklik_test$category_visits
+xreg_new3 = cbind(visitcounttest_kulaklik,basketcounttest_kulaklik,categorysoldtest_kulaklik,categoryvisitstest_kulaklik)
+
+sarimax_prediction3 = predict(sarimax_kulaklik, newxreg = xreg_new3)
+arima_prediction3 = predict(arima_kulaklik, newdata = kulaklik_test, n.ahead = 7)
+
+last_trend_kulaklik = tail(dec_weekly_kulaklik$trend[!is.na(dec_weekly_kulaklik$trend)],1)
+seasonality_kulaklik = dec_weekly_kulaklik$seasonal[2:8]
+
+predsarimax3 = sarimax_prediction3$pred + last_trend_kulaklik + seasonality_kulaklik
+predarima3 = arima_prediction3$pred + last_trend_kulaklik + seasonality_kulaklik
+
+lastkulaklik = data.table()
+lastkulaklik = lastkulaklik[,actual:=kulaklik_test$sold_count]
+lastkulaklik = lastkulaklik[,arimaprediction:=predarima3]
+lastkulaklik = lastkulaklik[,sarimaxprediction:=predsarimax3]
+
+## SUPURGE
+favoredcounttest_supurge = supurge_test$favored_count
+basketcounttest_supurge = supurge_test$basket_count
+categorysoldtest_supurge = supurge_test$category_sold
+categoryvisitstest_supurge = supurge_test$category_visits
+xreg_new4 = cbind(favoredcounttest_supurge,basketcounttest_supurge,categorysoldtest_supurge,categoryvisitstest_supurge)
+
+sarimax_prediction4 = predict(sarimax_supurge, newxreg = xreg_new4)
+arima_prediction4 = predict(arima_supurge, newdata = supurge_test, n.ahead = 7)
+
+last_trend_supurge = tail(dec_weekly_supurge$trend[!is.na(dec_weekly_supurge$trend)],1)
+seasonality_supurge = dec_weekly_supurge$seasonal[2:8]
+
+predsarimax4 = sarimax_prediction4$pred + last_trend_supurge + seasonality_supurge
+predarima4 = arima_prediction4$pred + last_trend_supurge + seasonality_supurge
+
+lastsupurge = data.table()
+lastsupurge = lastsupurge[,actual:=supurge_test$sold_count]
+lastsupurge = lastsupurge[,arimaprediction:=predarima4]
+lastsupurge = lastsupurge[,sarimaxprediction:=predsarimax4]
+
+## TAYT
+pricetest_tayt = tayt_test$price
+visitcounttest_tayt = tayt_test$visit_count
+basketcounttest_tayt = tayt_test$basket_count
+categorysoldtest_tayt = tayt_test$category_sold
+categoryvisitstest_tayt = tayt_test$category_visits
+xreg_new5 = cbind(pricetest_tayt,visitcounttest_tayt,basketcounttest_tayt,categorysoldtest_tayt,categoryvisitstest_tayt)
+
+sarimax_prediction5 = predict(sarimax_tayt, newxreg = xreg_new5)
+arima_prediction5 = predict(arima_tayt, newdata = tayt_test, n.ahead = 7)
+
+last_trend_tayt = tail(dec_weekly_tayt$trend[!is.na(dec_weekly_tayt$trend)],1)
+seasonality_tayt = dec_weekly_tayt$seasonal[2:8]
+
+predsarimax5 = sarimax_prediction5$pred + last_trend_tayt + seasonality_tayt
+predarima5 = arima_prediction5$pred + last_trend_tayt + seasonality_tayt
+
+lasttayt = data.table()
+lasttayt = lasttayt[,actual:=tayt_test$sold_count]
+lasttayt = lasttayt[,arimaprediction:=predarima5]
+lasttayt = lasttayt[,sarimaxprediction:=predsarimax5]
+
+## BİKİNİÜSTÜ 1 
+basketcounttest_bikini327 = bikini327_test$basket_count
+xreg_new6 = basketcounttest_bikini327
+
+sarimax_prediction6 = predict(sarimax_bikini327, newxreg = xreg_new6)
+arima_prediction6 = predict(arima_bikini327, newdata = bikini327_test, n.ahead = 7)
+
+last_trend_bikini327 = tail(dec_weekly_bikini327$trend[!is.na(dec_weekly_bikini327$trend)],1)
+seasonality_bikini327 = dec_weekly_bikini327$seasonal[2:8]
+
+predsarimax6 = sarimax_prediction6$pred + last_trend_bikini327 + seasonality_bikini327
+predarima6 = arima_prediction6$pred + last_trend_bikini327 + seasonality_bikini327
+
+lastbikini327 = data.table()
+lastbikini327 = lastbikini327[,actual:=bikini327_test$sold_count]
+lastbikini327 = lastbikini327[,arimaprediction:=predarima6]
+lastbikini327 = lastbikini327[,sarimaxprediction:=predsarimax6]
+
+## Diş Fırçası
+visitcounttest_firca = dis_fircasi_test$visit_count
+favoredcounttest_firca = dis_fircasi_test$favored_count
+basketcounttest_firca = dis_fircasi_test$basket_count
+xreg_new7 = cbind(visitcounttest_firca,favoredcounttest_firca,basketcounttest_firca)
+
+sarimax_prediction7 = predict(sarimax_firca, newxreg = xreg_new7)
+arima_prediction7 = predict(arima_disfircasi, newdata = dis_fircasi_test, n.ahead = 7)
+
+last_trend_firca = tail(dec_weekly_disfircasi$trend[!is.na(dec_weekly_disfircasi$trend)],1)
+seasonality_firca = dec_weekly_disfircasi$seasonal[2:8]
+
+predsarimax7 = sarimax_prediction7$pred + last_trend_firca + seasonality_firca
+predarima7 = arima_prediction7$pred + last_trend_firca + seasonality_firca
+
+lastfirca = data.table()
+lastfirca = lastfirca[,actual:=dis_fircasi_test$sold_count]
+lastfirca = lastfirca[,arimaprediction:=predarima7]
+lastfirca = lastfirca[,sarimaxprediction:=predsarimax7]
+
+# Mont 
+basketcounttest_mont = mont_test$basket_count
+xreg_new8 = basketcounttest_mont
+
+sarimax_prediction8 = predict(sarimax_mont, newxreg = xreg_new8)
+arima_prediction8 = predict(arima_mont, newdata = mont_test, n.ahead = 7)
+
+last_trend_mont = tail(dec_weekly_mont$trend[!is.na(dec_weekly_mont$trend)],1)
+seasonality_mont = dec_weekly_mont$seasonal[2:8]
+
+predsarimax8 = sarimax_prediction8$pred + last_trend_mont + seasonality_mont
+predarima8 = arima_prediction8$pred + last_trend_mont + seasonality_mont
+
+lastmont = data.table()
+lastmont = lastmont[,actual:=mont_test$sold_count]
+lastmont = lastmont[,arimaprediction:=predarima8]
+lastmont = lastmont[,sarimaxprediction:=predsarimax8]
+
+## BİKİNİ2 
+basketcounttest_bikini733 = bikini733_test$basket_count
+categorysoldtest_bikini733 = bikini733_test$category_sold
+xreg_new9 = cbind(basketcounttest_bikini733,categorysoldtest_bikini733)
+
+sarimax_prediction9 = predict(sarimax_bikini733, newxreg = xreg_new9)
+arima_prediction9 = predict(arima_bikini733, newdata = bikini733_test, n.ahead = 7)
+
+last_trend_bikini733 = tail(dec_weekly_bikini733$trend[!is.na(dec_weekly_bikini733$trend)],1)
+seasonality_bikini733 = dec_weekly_bikini733$seasonal[2:8]
+
+predsarimax9 = sarimax_prediction9$pred + last_trend_bikini733 + seasonality_bikini733
+predarima9 = arima_prediction9$pred + last_trend_bikini733 + seasonality_bikini733
+
+lastbikini733 = data.table()
+lastbikini733 = lastbikini733[,actual:=bikini733_test$sold_count]
+lastbikini733 = lastbikini733[,arimaprediction:=predarima9]
+lastbikini733 = lastbikini733[,sarimaxprediction:=predsarimax9]
+```
+
+## COMPARING PERFORMANCES
+  We will use MAPE as performance measure for predicted values. Again we will start from "yuz_temizleyici" data and calculate each products one by one.
+
+"yuz_temizleyici"
+```{r}
+
+MAPE_arima_temizleyici = 100 * sum(abs(lastyuztemizleyici$actual-lastyuztemizleyici$arimaprediction)/abs(lastyuztemizleyici$actual))/ 7
+MAPE_arima_temizleyici #20.05795
+
+MAPE_sarimax_temizleyici = 100 * sum(abs(lastyuztemizleyici$actual-lastyuztemizleyici$sarimaxprediction)/abs(lastyuztemizleyici$actual)) / 7
+MAPE_sarimax_temizleyici #15.13896
+
+```
+ Regressors in our arima model for data "yuz_temizleyici" increased performance of model approximately 5 percent from 20% MAPE to 15% MAPE.
+
+"islak_mendil"
+```{r}
+
+MAPE_arima_mendil = 100 * sum(abs(lastmendil$actual-lastmendil$arimaprediction)/abs(lastmendil$actual)) / 7
+MAPE_arima_mendil #23.41709
+
+MAPE_sarimax_mendil = 100 * sum(abs(lastmendil$actual-lastmendil$sarimaxprediction)/abs(lastmendil$actual)) / 7
+MAPE_sarimax_mendil #560.7457
+```
+In this case our MAPE for arima model forecasts is 23.42% however there are some interesting values in sarimaxprediction the last 3 day prediction of this is so meaningless. It gives values such as 8000, 16500. We could not find the mistake most probably we cannot see a little mistake. So our predictions with only arima model gives better performance.
+
+"kulaklik"
+```{r}
+
+MAPE_arima_kulaklik = 100 * sum(abs(lastkulaklik$actual-lastkulaklik$arimaprediction)/abs(lastkulaklik$actual)) / 7
+MAPE_arima_kulaklik #18.82598
+
+MAPE_sarimax_kulaklik = 100 * sum(abs(lastkulaklik$actual-lastkulaklik$sarimaxprediction)/abs(lastkulaklik$actual)) / 7
+MAPE_sarimax_kulaklik #199.0838
+
+```
+In this case our MAPE for arima model is 18.83%. Sarimax prediction's mape value is 199.08% again it is too high this may be because of the number of regressors we used. We used 4 regressors for both "islak_mendil" and "kulaklik". Making prediction with too many new_xreg parameter may be the reason behind these meaningless mape values in our opinion.
+
+"supurge"
+```{r}
+
+MAPE_arima_supurge = 100 * sum(abs(lastsupurge$actual-lastsupurge$arimaprediction)/abs(lastsupurge$actual)) / 7
+MAPE_arima_supurge #51.41471
+
+MAPE_sarimax_supurge = 100 * sum(abs(lastsupurge$actual-lastsupurge$sarimaxprediction)/abs(lastsupurge$actual)) / 7
+MAPE_sarimax_supurge #2822.228
+
+```
+Again the reason behind 2822.23% MAPE may be 4 regressors we used in new_xreg in predict function. 
+
+"tayt"
+```{r}
+
+MAPE_arima_tayt = 100 * sum(abs(lasttayt$actual-lasttayt$arimaprediction)/abs(lasttayt$actual)) / 7
+MAPE_arima_tayt #78.91206
+
+MAPE_sarimax_tayt = 100 * sum(abs(lasttayt$actual-lasttayt$sarimaxprediction)/abs(lasttayt$actual)) / 7
+MAPE_sarimax_tayt #172.2953
+
+```
+The arima model without regressors give better performance. Again we used too many new_xreg in predict function for "tayt" data. 
+
+"bikini327"
+```{r}
+
+MAPE_arima_bikini327 = 100 * sum(abs(lastbikini327$actual-lastbikini327$arimaprediction)/abs(lastbikini327$actual)) / 7
+MAPE_arima_bikini327 #12.93699
+
+MAPE_sarimax_bikini327 = 100 * sum(abs(lastbikini327$actual-lastbikini327$sarimaxprediction)/abs(lastbikini327$actual)) / 7
+MAPE_sarimax_bikini327 #15.70526
+
+```
+This time we have meaningful value for sarimaxprediction MAPE. We used only 1 regressor for the model. Our arima model gives better performance for prediction about sold_count for "bikini327" model.
+
+"dis_fircasi"
+```{r}
+
+MAPE_arima_firca = 100 * sum(abs(lastfirca$actual-lastfirca$arimaprediction)/abs(lastfirca$actual)) / 7
+MAPE_arima_firca #26.5474
+
+MAPE_sarimax_firca = 100 * sum(abs(lastfirca$actual-lastfirca$sarimaxprediction)/abs(lastfirca$actual)) / 7
+MAPE_sarimax_firca #19.52496
+
+```
+Our sarimaxprediction gives better performance which is forecasted by an arima model with regressors. In this case we have 3 regressors. If new_xreg parameter has 4 or more regressors our predict function starts to give meaningless predictions.
+
+"mont"
+```{r}
+
+MAPE_arima_mont = 100 * sum(abs(lastmont$actual-lastmont$arimaprediction)/abs(lastmont$actual)) / 7
+MAPE_arima_mont #43.95341
+
+MAPE_sarimax_mont = 100 * sum(abs(lastmont$actual-lastmont$sarimaxprediction)/abs(lastmont$actual)) / 7
+MAPE_sarimax_mont #43.09254
+
+```
+Both models almost have same performance in this case. Since our "mont" data has too many zeros in it this high and close mape values are normal. If we would have a good data we would make better predictions and would compare these models. 
+
+"bikini733"
+```{r}
+
+MAPE_arima_bikini733 = 100 * sum(abs(lastbikini733$actual-lastbikini733$arimaprediction)/abs(lastbikini733$actual)) / 7
+MAPE_arima_bikini733 #13.99726
+
+MAPE_sarimax_bikini733 = 100 * sum(abs(lastbikini733$actual-lastbikini733$sarimaxprediction)/abs(lastbikini733$actual)) / 7
+MAPE_sarimax_bikini733 #14.13329
+
+```
+Again this data also is not a good data because of zeros. However our mape values can be considered good but comparing them may not be meaningful. arima model without regressors gives slightly better performance. A good data without zeros would be nice for comparing performances of these 2 models.
+
+## CONCLUSION
+
+  We tried some other models for forecasting number of sold_count in our data which gives daily sales amount of Trendyol for 9 different products. We tried some arima models and then some regression models. We combined them at the end and prepared arima models with regressors. Adding more than 3 regressors to arima models gave us meaningless predicted values however models with 1,2 and 3 regressors gave better performance than arima models without regressors. One other problem were too many zeros in some of data which blocked us to make comments on their models and predictions.
+  
+
+
+
+
+ 
+ 
