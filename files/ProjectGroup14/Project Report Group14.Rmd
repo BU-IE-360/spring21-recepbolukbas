@@ -33,7 +33,7 @@ With the wide adoption of the Internet and the introduction of the World Wide We
 
 In this project, the aim is to forecasting the next day's sales quantities of nine products for an online retail, Trendyol, with the help of Time Series Approach. These forecasts can be used to make decisions such as pricing and inventory placement. We are given one data set to build prediction model which includes daily features starting from 05/25/2020. The structure and explanation of the data that we have used is as follows:
 
-The data can also be seen in the code [here](C:/Users/rtbol/Desktop/proje360/360project2.R)
+The data can also be seen in the code [here](https://github.com/BU-IE-360/spring21-okanyildirimm/blob/gh-pages/Project%20-%20Group%2014/360project2%20(1).R)
 
 ### ProjectRawData.csv
 
