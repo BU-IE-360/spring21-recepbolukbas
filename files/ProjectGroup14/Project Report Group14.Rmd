@@ -1,0 +1,177 @@
+---
+title: "IE 360 Term Project Report"
+author: "Cüneyt Çakır, Okan Yıldırım, Recep Talha Bölükbaş"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  html_document:
+      fig_width: 8
+      fig_height: 6
+      fig_caption: true
+      code_folding: hide
+      toc: true
+      toc_float: true
+      toc_depth: 4 
+      number_sections: true
+      theme: readable
+      highlight: tango 
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# A Time Series Approach for Sales Quantity Prediction
+
+## Introduction
+
+The history of E-commerce goes back to 1948-49 Berlin bloackade and airlift with a system of ordering goods via telex. It started as a standard for exhange of documents, such as orders or invoices, between suppliers and their business customers. Computer-to-computer electronic data interchange(EDI) standard became flexible enough to handle most simple electronic business transactions.
+
+With the wide adoption of the Internet and the introduction of the World Wide Web in 1991 and of the first browser for accessing it in 1993, most e-commerce shifted to the Internet. More recently, with the global spread of smartphones and the accessibility of fast broadband connections to the Internet, much e-commerce moved to mobile devices, which also included tablets, laptops, and wearable products such as watches.
+
+In this project, the aim is to forecasting the next day's sales quantities of nine products for an online retail, Trendyol, with the help of Time Series Approach. These forecasts can be used to make decisions such as pricing and inventory placement. We are given one data set to build prediction model which includes daily features starting from 05/25/2020. The structure and explanation of the data that we have used is as follows:
+
+The data can also be seen in the code [here](C:/Users/rtbol/Desktop/proje360/360project2.R)
+
+### ProjectRawData.csv
+
+ProjectRawData consists of the following columns and the column names are self-explanatory.
+
+* event_date
+* product_content_id
+* price
+* sold_count
+* visit_count
+* basket_count
+* favored_count
+* category_sold
+* category_visits
+* category_basket
+* category_favored
+* category_brand_sold
+* ty_visits
+
+
+Considering the data set above, we have split them according to product ID. Since there are nine different products, we worked on nine different data sets afterwards.
+
+  
+## Related Literature
+
+We have searched for the previous works on the field and examined the paper "A prediction study on e-commerce sales based on structure time series model and web search data" written by Dai Wei, Peng Geng, Liu Ying, Li Shuaipeng. This paper studies the prediction of the clothing sales volume in Taobao based on structure time series model and Taobao search data. Firstly, we build a theoretical framework for predicting. Secondly, select keywords to synthesize search index and decompose the irregular factor of sales volume using structure time
+series model. Then make empirical analysis and test on the relationship between search index and irregular factors. Thirdly, we explore a real-time prediction method of clothing sales volume using structure time series model and website search data. In the last, we make a summary and propose prospects for future research. 
+
+
+## Approach
+
+As it is stated, we have used a time series approach and the operations before the usage of selected model(s) play important role as much as the selection of the model. These operations are made for the data to take a suitable form.
+
+Our approach for this problem can be divided into three categories and these stages are as follows:
+
+* Manipulate the data
+
+* Determine the model
+
+* Enhance the model
+
+### Manipulating the data
+ 
+As it is mentioned in the introduction part, we divided initial data set into nine data sets. 
+We ignored the missing values in those data sets if there are too many. This manipulation can be seen from; 
+![Manipulation Code](C:/Users/rtbol/Desktop/proje360/manipulation.jpg) 
+
+
+### Determining a model
+
+We decided to use Multiple linear regression (MLR) for our model. We included all input variables at first for our model for all of the products. Then, we investigated the significance of the independent variables and eliminated insignificant variables. Furthermore, we added trend and  discount variables. We created discount variable data points by inspecting peaks by visual inspection via graphs. After that, we created new models and compared them with our previous models by looking at r^2 values. The models that we finally picked has the appropriate r^2 values for forecasting. 
+
+  We have decided the is_discount value from discount advertisements in the website of Trendyol. Found discount days were following: 
+
+![Discount Days Table](C:/Users/rtbol/Desktop/proje360/DiscountDays.jpeg)
+
+  We add these days to data which we used that information as an input variable. 
+  
+## Predictions
+
+To predict next day sales, we created a manual loop which is formed from last five observations of significant input variables that we used in our model. By daily manual control for our nine products, we decided whether discount  variable takes value of one or zero for the next two days. Lastly, we used predict function to get our forecasted sales quantities.
+
+## Results
+
+Since the submission has been done several times, we have prepared a base prediction code block and it is updated for every submission.
+For the evaluation of the results, we have considered the model built for the last submission.
+
+![Final Results of 85004](C:/Users/rtbol/Desktop/proje360/models/85004 Cilt Bakım Y¨uz Temizleyici La Roche Posay.PNG)
+  
+  In this case we have considered significance of input variables and the value of adjusted R-squared at the same time. We have tried that all models should have highly significant variables and adjusted R-squared as high as possible. For last model we have 0.9422 adjusted R-squared value and high significance in two of the regressors. This results can be considered good enough for making prediction with them.
+
+![Final Results of 4066298](C:/Users/rtbol/Desktop/proje360/models/4066298 Anne ve Bebek Bakım Bebek Islak Mendil Sleepy.PNG)
+
+  For this product again high significance and adjusted R-squared values were the main purpose of the models. We have reached the result that all of the regressors have acceptable significance except is_discount. We did not exclude it from our model because its p value is just above the 0.05 and we are adding new data to our product every passing day. It can be useful in prediction later. Last adjusted R-squared value is 0.8996 which was the best among other models for product 4066298
+  
+![Final Results of 6676673](C:/Users/rtbol/Desktop/proje360/models/6676673 Elektronik Aksesuarlar Bluetooth Kulaklık Xiaomi.PNG)
+  
+  This time we have very high adjusted R-squared which is 0.9566 for product 6676673. With this best r-squared value, the significance level of regressors is as high as possible. However, since we excluded intercept value from our model this high adjusted R-squared value may be misleading. In this case we looked at Residual standard error which is 6.856 and we thought that this value is also appropriate for making prediction with this model.
+  
+![Final Results of 7061886](C:/Users/rtbol/Desktop/proje360/models/7061886 Elektrikli Ev Aletleri Dik S¨up¨urge Fakir.PNG)
+
+  Results of this product is somehow same with previous one. Again we do not have intercept in our model. So our adjusted R-squared value may lead us to make wrong comments on model. This time our Residual standard error value is also high "38.95". However it was the best among other models and we have decided to use this model for further steps. 
+  
+![Final Results of 31515569](C:/Users/rtbol/Desktop/proje360/models/31515569 Alt Giyim Tayt TRENDYOLM˙ILLA.PNG)
+
+  In this case we have intercept value in our model and adjusted R-squared value is 0.8731. Significance of regressors is high enough and we decided to use this model.
+  
+![Final Results of 32737302](C:/Users/rtbol/Desktop/proje360/models/32737302 Plaj Giyim Bikini Ust¨u TRENDYOLM ¨ ˙ILLA.PNG)
+
+  This first bikini data is one of the worst data we have because of its 0 values. We deleted these 0 data points and built models from remaining parts. So models we have was not good enough other models. Even so we have tried to catch maximum significance values and lowest Residual standard error. Final model has 66.43 RSE which is not good for prediction but the best among other models.
+  
+![Final Results of 32939029](C:/Users/rtbol/Desktop/proje360/models/32939029 A˘gız Bakım S¸arj Edebilir Di¸s Fır¸cası Oral-B.PNG)
+  
+  This product is very similar to product 31515569. Adjusted R-squared value is 0.8415. We have enough significance regressors and this model can be considerd as good for making predictions.
+  
+![Final Results of 48740784](C:/Users/rtbol/Desktop/proje360/models/48740784 Dı¸s Giyim Mont ALTINYILDIZ CLASSICS.PNG)
+
+  Product 48740784 is may be the worst data among all products. It has too many 0's and the model after excluding this 0 data points are not good enough. Even so we have tried to find best model and our last model had 0.3262 adjusted R-squared and input variables have p values between 0.01-0.05. 
+
+![Final Results of 73318567](C:/Users/rtbol/Desktop/proje360/models/73318567 Plaj Giyim Bikini Ust¨u TRENDYOLM ¨ ˙ILLA.PNG)
+  
+  This is the same with previous product. Adjusted r-squared is 0.3172. It seems very low however it is the best among other models we have tried. The predictions about these last two products may give us huge error rates. 
+  
+
+If we take an overall look at the most important features, we see that the away team seems to be a lot more important. 
+Another interesting point of the results is the number of offsides that the away team received in the match is also has very high importance in the matches. Naturally, in a match, if the measurement of the home and away team is neglected ( i.e. the home and away team is assumed to be the same team) and the result of the match is assumed not to affect the teams in the championship, then one can state that the home team will unavoidably be more attractive against the away in the match that they play in their home with higher morale. This will lead to higher number of attacks. On the other hand, away team with less morale would prefer to keep current score and try to defend the away team. Hence the offsides of the teams are directly associated with the number of attackes of the teams and the offsides of the away team could give better clue on the result since higher number of attacks are not expected from the away team in a match.
+
+The results of the model and the significance levels of the features can be explained such above. In this manner, the last to say can be the autocorrelation between the data columns in the data set. To give an example, as it is stated above, the number of the offsides are related to the number of attacks of the teams and can be considered as a good predictor for the future results. Looking at the goal attempts which should also an importance, they do not have much effect compared to the other features. Thinking more deeply, this features could be changed to the difference measures.
+
+  In the fitted predictions graphs we have real versus predicted value graphs for each product. In these graphs we could catched the peaks because of the discount days. In some of the discount days even is_discount variable couldn't reach the top level such as in November Discounts. Generally we could fit our predictions in real values but products such as bikinis and coat, are not good enough for us this is because of the too less data points remaining after we exclude 0 values. Some of the interesting graphs given in the below.
+
+![Graph Predictions vs Real for Bluetooth Headphones](C:/Users/rtbol/Desktop/proje360/grafikler/6676673 Elektronik Aksesuarlar Bluetooth Kulaklık Xiaomi1.PNG)
+![Graph Predictions vs Real for Baby Wipes](C:/Users/rtbol/Desktop/proje360/grafikler/4066298 Anne ve Bebek Bakım Bebek Islak Mendil Sleepy1.PNG)
+![Graph Predictions vs Real for Coat](C:/Users/rtbol/Desktop/proje360/grafikler/48740784 Dı¸s Giyim Mont ALTINYILDIZ CLASSICS1.PNG)
+![Graph Predicitons vs Real for Bikini](C:/Users/rtbol/Desktop/proje360/grafikler/73318567 Plaj Giyim Bikini.PNG)
+
+
+## Conclusions and Future Work
+
+
+A high percentile of the Turkish youth have betted or been still betting on a match once in their lifetime. So, we were two of that youth, and depending on our so-called experience, we would not think the away team in a match single handedly has more importance than the home team. Rather, we would think that the interaction or the comparison of these two teams have a lot higher importance. Thus, if we were to be provided better datasets or we could use these datasets to generate the information mentioned above, we would comment on the results better.
+
+At the end of the day, the datasets only provide numeric responses. In other words, there are different measures that affect the match’s result. For example, a scandal happening in the team or sudden changes in the players’ behaviors etc. So, adding these may be possible and in the future, it can be worked on.
+
+When sales fluctuate severely, due to the high dependence on historical data, the models can not reflect the real trend and the prediction accuracy is relatively low. 
+
+Working on the predictions of the matches forms the structure of the bet companies (bookmakers) and the sector has been growing gradually for many years. The relational model that is used predicting the game results can be improved by the following manners:
+
+### Development of the model strategy:
+
+Changing the structure of the model can be one of the works that can be done. Looking back to history,  time series approaches are commonly chosen because of the nature of the data. Therefore the model type is one of the most important things that we have to consider and more compatible models could naturally give more accurate results.
+
+### Enhance the Data Set:
+
+Widening the data set that we used for our models can be another opportunity. In this work, relational features that are believed to have an impact on the sales quantities can be obtained and used in the models. Some of the examples of these features can be as follows:
+
+•  External factors such as economic, social, natural, technology, policy, and seasonal factors can be added.
+
+• The other important feature can be wheather. The wheather of the cities can also be used in the model. The sales quantity of mont is currently dependent on the adverse wheather conditions.
+
+• Bank rate for loans can play a very significant role in the number of the sales. This data can also be used.

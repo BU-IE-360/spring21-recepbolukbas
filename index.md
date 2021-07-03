@@ -20,3 +20,7 @@
 ## HOMEWORK 4-5 (July 2)
 
 [Here](files/HW45/HW45GROUP14.html) is different models to forecast project data and their performances.
+
+## PROJECT (July 3)
+
+[Here](files/ProjectGroup14/Project-ReportGroup14.html) is our project report as Group14.
